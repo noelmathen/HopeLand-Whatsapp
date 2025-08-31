@@ -13,6 +13,9 @@ load_dotenv()
 import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+import mimetypes
+MEDIA_CACHE = {}  
+
 
 # ====== Config ======
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
@@ -23,7 +26,7 @@ if not WHATSAPP_TOKEN or not PHONE_NUMBER_ID:
     print("WARNING: Set WHATSAPP_TOKEN and WHATSAPP_PHONE_ID in your environment or .env")
 
 # Optional: number customers can call/WhatsApp for a human handoff
-HUMAN_CONTACT = os.environ.get("HUMAN_CONTACT", "+974-5XXXXXXX")  # replace with your real number
+HUMAN_CONTACT = os.environ.get("HUMAN_CONTACT", "+974-55555555")  # replace with your real number
 
 # ====== Flask ======
 app = Flask(__name__)
@@ -38,89 +41,127 @@ LISTINGS: Dict[str, List[Dict]] = {
     "1bhk": [
         {
             "id": "R101",
-            "title": "1BHK (GF Main)",
+            "title": "R101 — 1BHK (GF Main)",
             "desc": "GF main room, 2 windows, big hall, big room (ground floor).",
             "images": [
-                "https://example.com/rooms/R101_1.jpg",
-                "https://example.com/rooms/R101_2.jpg"
+                "media/IMG-20250831-WA0001.jpg",
+                "media/IMG-20250831-WA0002.jpg",
             ]
         },
         {
             "id": "R104",
-            "title": "1BHK",
+            "title": "R104 — 1BHK",
             "desc": "Standard 1BHK.",
-            "images": ["https://example.com/rooms/R104_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R105",
-            "title": "1BHK (Back Entrance)",
+            "title": "R105 — 1BHK (Back Entrance)",
             "desc": "Back entrance, hall/room, window, bathroom with bathtub.",
-            "images": ["https://example.com/rooms/R105_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R107",
-            "title": "1BHK BIG",
+            "title": "R107 — 1BHK BIG",
             "desc": "Big hall, kitchen, dressing room, modern bathroom, no partition.",
-            "images": ["https://example.com/rooms/R107_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R108",
-            "title": "1BHK SMALL",
+            "title": "R108 — 1BHK SMALL",
             "desc": "Long hall, big kitchen, dressing room, big room, big bathroom.",
-            "images": ["https://example.com/rooms/R108_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R111",
-            "title": "Big Premium 1BHK",
+            "title": "R111 — Big Premium 1BHK",
             "desc": "Separate passage, big room with 2 windows, big hall window, kitchen, dressing room.",
-            "images": ["https://example.com/rooms/R111_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
     ],
     "studio": [
         {
             "id": "R102",
-            "title": "Big Studio (GF)",
+            "title": "R102 — Big Studio (GF)",
             "desc": "Big room with window, separate kitchen.",
-            "images": ["https://example.com/rooms/R102_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R103",
-            "title": "Studio",
+            "title": "R103 — Studio",
             "desc": "Standard studio.",
-            "images": ["https://example.com/rooms/R103_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R106",
-            "title": "Studio",
+            "title": "R106 — Studio",
             "desc": "Separate entrance, closed kitchen, bathroom with bathtub.",
-            "images": ["https://example.com/rooms/R106_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R109",
-            "title": "Big Studio",
+            "title": "R109 — Big Studio",
             "desc": "Big room, closed kitchen, bathroom with window.",
-            "images": ["https://example.com/rooms/R109_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R110",
-            "title": "Studio",
+            "title": "R110 — Studio",
             "desc": "Big room, spacious kitchen, separate passage, window inside room.",
-            "images": ["https://example.com/rooms/R110_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R112",
-            "title": "Small Studio",
+            "title": "R112 — Small Studio",
             "desc": "Outside room.",
-            "images": ["https://example.com/rooms/R112_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
         {
             "id": "R113",
-            "title": "Small Studio",
+            "title": "R113 — Small Studio",
             "desc": "Outside room.",
-            "images": ["https://example.com/rooms/R113_1.jpg"]
+            "images": ["media/IMG-20250831-WA0001.jpg"]
         },
     ]
 }
+
+def upload_media(filepath: str) -> str:
+    """Upload a local file to WhatsApp and return media_id. Caches by path."""
+    if filepath in MEDIA_CACHE:
+        return MEDIA_CACHE[filepath]
+
+    # Guess MIME type
+    mime, _ = mimetypes.guess_type(filepath)
+    if not mime:
+        mime = "image/jpeg"
+
+    url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/media"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+    data = {"messaging_product": "whatsapp"}
+
+    with open(filepath, "rb") as f:
+        files = {"file": (os.path.basename(filepath), f, mime)}
+        r = requests.post(url, headers=headers, data=data, files=files, timeout=60)
+    try:
+        r.raise_for_status()
+    except Exception as e:
+        logging.error("Media upload failed for %s: %s | %s", filepath, e, r.text)
+        raise
+
+    media_id = r.json().get("id")
+    if not media_id:
+        raise RuntimeError(f"No media id returned for {filepath}: {r.text}")
+    MEDIA_CACHE[filepath] = media_id
+    return media_id
+
+def build_image_payload(img_entry: str) -> dict:
+    """Accepts either https URL or local file path; returns {'link':...} or {'id':...}."""
+    if img_entry.lower().startswith("http"):
+        return {"link": img_entry}
+    # treat as local file
+    media_id = upload_media(img_entry)
+    return {"id": media_id}
+
 
 # Helper to look up a listing by ID across categories
 def find_listing(listing_id: str) -> Optional[Dict]:
@@ -223,30 +264,48 @@ def send_listings_menu(to: str, category_key: str):
 
 
 
-def send_listing_photos(to: str, listing: Dict):
-    title = listing["title"]
-    desc = listing["desc"]
-    if not listing.get("images"):
-        send_text(to, f"{title}\n{desc}\n\nPhotos will be shared shortly.")
-    else:
-        for idx, link in enumerate(listing["images"], start=1):
-            wa_post({
-                "messaging_product": "whatsapp",
-                "to": to,
-                "type": "image",
-                "image": {
-                    "link": link,
-                    "caption": f"{title} — Photo {idx}"
-                }
-            })
-            time.sleep(0.2)  # be gentle
-    # CTA after photos
-    send_text(
-        to,
-        "Want a viewing or more details?\n"
-        f"Reply *agent* to chat with our team, or call us at {HUMAN_CONTACT}.\n"
-        "To continue browsing, type *menu*."
+def build_contact_message(listing: Dict) -> str:
+    # Professional, not cheesy. Mentions unit code and nudges to call.
+    return (
+        f"Thanks for your interest in *{listing['title']}* (Unit *{listing['id']}*, Muither).\n"
+        f"For the quickest details and booking, please *call* us on *{HUMAN_CONTACT}*.\n"
+        f"Kindly mention *Unit {listing['id']}* so we can assist immediately."
     )
+
+
+
+def send_listing_details(to: str, listing: Dict):
+    # 1) Always send the contact message first
+    send_text(to, (
+        f"Thanks for your interest in *{listing['title']}* (Unit *{listing['id']}*, Muither).\n"
+        f"For the quickest details and booking, please *call* us on *{HUMAN_CONTACT}*.\n"
+        f"Kindly mention *Unit {listing['id']}* so we can assist immediately."
+    ))
+
+    # 2) Photos (if any)
+    imgs = listing.get("images") or []
+    if imgs:
+        send_text(to, f"Here are a few photos of *Unit {listing['id']}*.")
+        for idx, img in enumerate(imgs, start=1):
+            try:
+                image_field = build_image_payload(img)   # << magic here
+                wa_post({
+                    "messaging_product": "whatsapp",
+                    "to": to,
+                    "type": "image",
+                    "image": {**image_field, "caption": f"Unit {listing['id']} — photo {idx}"}
+                })
+                time.sleep(0.2)
+            except Exception:
+                logging.exception("Failed to send image for %s (%s)", listing["id"], img)
+    else:
+        # send_text(to, f"Photos for *Unit {listing['id']}* will be shared on request.")
+        pass
+
+    # 3) Nudge to continue
+    send_text(to, "To keep browsing, type *menu* to return to categories.")
+
+
 
 # ====== Webhook endpoints ======
 @app.get("/whatsapp/webhook")
@@ -331,7 +390,7 @@ def inbound():
                         listing_id = list_reply_id.replace("listing_", "", 1)
                         listing = find_listing(listing_id)
                         if listing:
-                            send_listing_photos(wa_id, listing)
+                            send_listing_details(wa_id, listing)
                             # stay in same category
                             if sess.get("last_cat"):
                                 send_listings_menu(wa_id, sess["last_cat"])
