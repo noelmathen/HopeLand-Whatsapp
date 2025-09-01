@@ -4,14 +4,23 @@ from .config import GRAPH_API_BASE, WHATSAPP_TOKEN, MEDIA_CACHE_PATH
 MEDIA_CACHE = {}
 
 def _load_cache():
+    import json, os, logging
     global MEDIA_CACHE
     try:
         if os.path.isfile(MEDIA_CACHE_PATH):
+            if os.path.getsize(MEDIA_CACHE_PATH) == 0:
+                MEDIA_CACHE = {}
+                return
             with open(MEDIA_CACHE_PATH, "r", encoding="utf-8") as f:
-                MEDIA_CACHE = json.load(f)
+                try:
+                    MEDIA_CACHE = json.load(f)
+                except json.JSONDecodeError:
+                    logging.warning("media cache was invalid JSON; resetting to {}")
+                    MEDIA_CACHE = {}
     except Exception as e:
         logging.exception("Failed to load media cache: %s", e)
         MEDIA_CACHE = {}
+
 
 def _save_cache():
     try:

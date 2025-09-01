@@ -9,6 +9,7 @@ services:
     volumes:
       - ./data:/data
       - ./secrets:/secrets:ro
+      - ./media:/app/media:ro
     expose:
       - "3000"
 
