@@ -1,17 +1,14 @@
-# hopeland_bot/__init__.py
 from flask import Flask
 from .config import init_logging, warn_if_missing_secrets
 from .routes import bp as routes_bp
-from .scheduler import start_scheduler
+from .media import init_media_cache
 
 def create_app() -> Flask:
     init_logging()
     warn_if_missing_secrets()
+    init_media_cache()
     app = Flask(__name__)
     app.register_blueprint(routes_bp)
-
-    # start digest scheduler (no-op if disabled)
-    start_scheduler()
 
     @app.errorhandler(Exception)
     def _unhandled(e):

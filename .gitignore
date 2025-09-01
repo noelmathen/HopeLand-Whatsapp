@@ -1,6 +1,6 @@
 .env
 hope_env/
 media/
-creds/
+secrets/
 *.pyc
 __pycache__

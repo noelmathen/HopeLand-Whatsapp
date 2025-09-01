@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: hopeland-app
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+      - ./secrets:/secrets:ro
+    expose:
+      - "3000"
+
+  digest:
+    build: .
+    container_name: hopeland-digest
+    restart: unless-stopped
+    env_file: .env
+    command: ["python","-c","from hopeland_bot.digest import loop_every_6h; loop_every_6h()"]
+    volumes:
+      - ./data:/data
+      - ./secrets:/secrets:ro
+    depends_on:
+      - app
+    # Run only one of these in production. If you scale, remove/disable this service.
+
+  caddy:
+    image: caddy:2
+    container_name: hopeland-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

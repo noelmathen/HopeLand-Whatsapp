@@ -1,0 +1,19 @@
+{
+    email admin@${DOMAIN}
+}
+
+${DOMAIN} {
+    encode gzip
+    @webhook path /whatsapp/webhook
+    reverse_proxy app:3000
+
+    # Admin endpoints (protected by API key in app; still fine to proxy)
+    @admin path /admin/* /health
+    reverse_proxy app:3000
+
+    # Increase timeouts for webhook posts
+    transport http {
+        read_buffer 8192
+        response_header_timeout 120s
+    }
+}
