@@ -22,6 +22,7 @@ services:
     volumes:
       - ./data:/data
       - ./secrets:/secrets:ro
+      - ./media:/app/media:ro
     depends_on:
       - app
     # Run only one of these in production. If you scale, remove/disable this service.
